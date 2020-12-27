@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use std::collections::{HashMap, HashSet};
 
 fn log_weight_score(inp: &str) -> f32 {
     inp.chars().fold(0.0, |acc, c| acc + log_weight(c))

@@ -1,13 +1,4 @@
 use std::ops::Shr;
-use std::slice::Iter;
-use itertools::Itertools;
-
-pub const BASE64: [char; 64] = [
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
-    'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-    'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4',
-    '5', '6', '7', '8', '9', '+', '/',
-];
 
 const fn hex_to_byte(c: char) -> u8 {
     match c {
@@ -54,17 +45,3 @@ pub fn bytes_to_hex(inp: Vec<u8>) -> String {
         .collect()
 }
 
-pub fn hex_to_base64(inp: &str) -> String {
-    let mut res = String::with_capacity((inp.len() / 3) * 4);
-    for b in hex_to_bytes(inp).chunks_exact(3) {
-        let d1 = b[0].shr(2);
-        let d2 = ((b[0] << 6) | (b[1] >> 2)) >> 2;
-        let d3 = ((b[1] << 4) | (b[2] >> 4)) >> 2;
-        let d4 = (b[2] << 2) >> 2;
-        res.push(BASE64[d1 as usize]);
-        res.push(BASE64[d2 as usize]);
-        res.push(BASE64[d3 as usize]);
-        res.push(BASE64[d4 as usize]);
-    }
-    res
-}

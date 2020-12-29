@@ -1,10 +1,10 @@
 use itertools::Itertools;
 
-fn log_weight_score(inp: &str) -> f32 {
+pub fn log_weight_score(inp: &str) -> f32 {
     inp.chars().fold(0.0, |acc, c| acc + log_weight(c))
 }
 
-fn bigram_score(inp: &str) -> f32 {
+pub fn bigram_score(inp: &str) -> f32 {
     inp.chars()
         .tuple_windows()
         .fold(0.0, |acc, (c1, c2)| acc + bigram_weights(&[c1, c2]))

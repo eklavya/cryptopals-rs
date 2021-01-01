@@ -1,5 +1,27 @@
 use crate::hex::hex_to_bytes;
-use itertools::Itertools;
+
+#[cfg(test)]
+mod tests {
+    use crate::base64::{decode_base64, encode_base64};
+
+    #[test]
+    fn test_codec() {
+        assert_eq!(encode_base64(""), "");
+        assert_eq!(encode_base64("f"), "Zg==");
+        assert_eq!(encode_base64("fo"), "Zm8=");
+        assert_eq!(encode_base64("foo"), "Zm9v");
+        assert_eq!(encode_base64("foob"), "Zm9vYg==");
+        assert_eq!(encode_base64("fooba"), "Zm9vYmE=");
+        assert_eq!(encode_base64("foobar"), "Zm9vYmFy");
+        assert_eq!(decode_base64(""), "");
+        assert_eq!(decode_base64("Zg=="), "f");
+        assert_eq!(decode_base64("Zm8="), "fo");
+        assert_eq!(decode_base64("Zm9v"), "foo");
+        assert_eq!(decode_base64("Zm9vYg=="), "foob");
+        assert_eq!(decode_base64("Zm9vYmE="), "fooba");
+        assert_eq!(decode_base64("Zm9vYmFy"), "foobar");
+    }
+}
 
 pub fn hex_to_base64(inp: &str) -> String {
     let mut res = String::with_capacity((inp.len() / 3) * 4);
@@ -20,14 +42,14 @@ pub fn encode_base64(inp: &str) -> String {
     let mut res = String::with_capacity((inp.len() / 3) * 4);
     for b in inp.as_bytes().chunks(3) {
         if b.len() == 3 {
-        let d1 = b[0] >> 2;
-        let d2 = ((b[0] << 6) | (b[1] >> 2)) >> 2;
-        let d3 = ((b[1] << 4) | (b[2] >> 4)) >> 2;
-        let d4 = (b[2] << 2) >> 2;
-        res.push(BASE64[if (d1 as usize) < 64 { d1 as usize } else { 64 }]);
-        res.push(BASE64[if (d2 as usize) < 64 { d2 as usize } else { 64 }]);
-        res.push(BASE64[if (d3 as usize) < 64 { d3 as usize } else { 64 }]);
-        res.push(BASE64[if (d4 as usize) < 64 { d4 as usize } else { 64 }]);
+            let d1 = b[0] >> 2;
+            let d2 = ((b[0] << 6) | (b[1] >> 2)) >> 2;
+            let d3 = ((b[1] << 4) | (b[2] >> 4)) >> 2;
+            let d4 = (b[2] << 2) >> 2;
+            res.push(BASE64[if (d1 as usize) < 64 { d1 as usize } else { 64 }]);
+            res.push(BASE64[if (d2 as usize) < 64 { d2 as usize } else { 64 }]);
+            res.push(BASE64[if (d3 as usize) < 64 { d3 as usize } else { 64 }]);
+            res.push(BASE64[if (d4 as usize) < 64 { d4 as usize } else { 64 }]);
         } else {
             match b.len() {
                 1 => {
@@ -47,7 +69,7 @@ pub fn encode_base64(inp: &str) -> String {
                     res.push(BASE64[if (d3 as usize) < 64 { d3 as usize } else { 64 }]);
                     res.push('=');
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
     }
@@ -98,7 +120,7 @@ pub const BASE64: [char; 65] = [
     '5', '6', '7', '8', '9', '+', '/', '=',
 ];
 
-const fn base64_to_byte(c: char) -> u8 {
+pub const fn base64_to_byte(c: char) -> u8 {
     match c {
         'A' => 0,
         'B' => 1,

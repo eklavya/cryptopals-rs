@@ -1,7 +1,38 @@
 use itertools::Itertools;
+use std::collections::{HashMap, HashSet};
 
 pub fn log_weight_score(inp: &str) -> f32 {
     inp.chars().fold(0.0, |acc, c| acc + log_weight(c))
+}
+
+pub fn char_freq_score(inp: &str) -> u64 {
+    let common = ['e', 't', 'a', 'o', 'i', 'n', 's', 'h', 'r', 'd', 'l', 'u']
+        .iter()
+        .collect::<HashSet<_>>();
+    let allowed = ['\'', '\"', ',', '.', '?', ' ', '\n']
+        .iter()
+        .collect::<HashSet<_>>();
+    let score = inp.to_ascii_lowercase().chars().fold(0, |score, c| {
+        // println!(" char is {} score is {}", c, if common.contains(&c) {1} else {0} - if c.is_ascii_alphanumeric() {0} else {1});
+        score + {
+            if common.contains(&c) {
+                1
+            } else {
+                0
+            }
+        } - {
+            if c.is_ascii_alphanumeric() || allowed.contains(&c) {
+                0
+            } else {
+                1
+            }
+        }
+    });
+    if score < 0 {
+        0
+    } else {
+        score as u64
+    }
 }
 
 pub fn bigram_score(inp: &str) -> f32 {
@@ -10,10 +41,15 @@ pub fn bigram_score(inp: &str) -> f32 {
         .fold(0.0, |acc, (c1, c2)| acc + bigram_weights(&[c1, c2]))
 }
 
-pub fn eng_socre(inp: &str) -> f32 {
+pub fn eng_socre(inp: &str) -> u64 {
     let log_w_score = log_weight_score(inp);
     let bigram_score = bigram_score(inp);
-    log_w_score + bigram_score
+    let score = log_w_score + bigram_score;
+    if score.is_sign_negative() {
+        0
+    } else {
+        score as u64
+    }
 }
 
 const fn bigram_weights(s: &[char; 2]) -> f32 {

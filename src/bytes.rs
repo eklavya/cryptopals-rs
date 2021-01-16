@@ -4,6 +4,7 @@ use crate::base64::{encode_base64, B64};
 use crate::eng::{char_freq_score, eng_socre};
 use crate::hex::{Hex, HEX};
 use rayon::prelude::*;
+use openssl::symm::{Crypter, Mode, Cipher};
 
 pub const ALL_CHARS: [char; 95] = [
     '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3',
@@ -41,7 +42,7 @@ impl Bytes {
         B64(encode_base64(&self.0))
     }
 
-    pub fn xor(&self, other: Bytes) -> Bytes {
+    pub fn xor(&self, other: &Bytes) -> Bytes {
         Bytes(
             self.0
                 .iter()
@@ -145,5 +146,75 @@ impl Bytes {
 
     pub fn from_string(s: String) -> Self {
         Bytes(s.into_bytes())
+    }
+
+    pub fn pad_pkcs(mut self, block_size: u8) -> Self {
+        let rem = (self.0.len() % block_size as usize) as u8;
+        let pad = if rem == 0 { 0 } else { block_size - rem };
+        (0..pad).for_each(|_| {
+            self.0.push(b'\x04');
+        });
+        self
+    }
+
+    pub fn encrypt_CBC(self, key: &[u8], iv: &[u8]) -> Bytes {
+        let cipher = Cipher::aes_128_ecb();
+        let mut crypter = Crypter::new(cipher, Mode::Encrypt, key, Some(iv)).unwrap();
+        crypter.pad(false);
+        let padded = self.pad_pkcs(key.len() as u8);
+        let mut res = vec![0; padded.0.len() + key.len()];
+        let (_, count) = padded.0.chunks_exact(key.len()).fold((Bytes(iv.into()), 0), |(xor_with, count), b| {
+            let added = crypter.update(Bytes(b.into()).xor(&xor_with).0.as_slice(), &mut res[count..]).unwrap();
+            (Bytes(res[count..{count + added}].to_vec()), count + added)
+        });
+        crypter.finalize(&mut res[count..]);
+        res.truncate(count);
+        Bytes(res)
+    }
+
+    pub fn decrypt_CBC(self, key: &[u8], iv: &[u8]) -> Bytes {
+        let cipher = Cipher::aes_128_ecb();
+        let mut crypter = Crypter::new(cipher, Mode::Decrypt, key, Some(iv)).unwrap();
+        crypter.pad(false);
+        let padded = self.pad_pkcs(key.len() as u8);
+        let mut res = vec![0; padded.0.len() + key.len()];
+        let (_, count) = padded.0.chunks_exact(key.len()).fold((iv, 0), |(xor_with, count), b| {
+           let added = crypter.update(b, &mut res[count..]).unwrap();
+            for i in 0..added {
+                res[count + i] = res[count + i] ^ xor_with[i];
+            }
+            (b, count + added)
+        });
+        crypter.finalize(&mut res[count..]);
+        res.truncate(count);
+        Bytes(res)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use openssl::symm::{decrypt, encrypt, Cipher};
+
+    use crate::bytes::Bytes;
+
+    #[test]
+    fn test_pad_pkcs() {
+        let bytes = Bytes::from_string("YELLOW SUBMARINE".into());
+        let new = bytes.pad_pkcs(20);
+        assert_eq!(new.into_string(), "YELLOW SUBMARINE\x04\x04\x04\x04");
+        let bytes = Bytes::from_string("YELLOW SUBMARINE".into());
+        let new = bytes.pad_pkcs(9);
+        assert_eq!(new.into_string(), "YELLOW SUBMARINE\x04\x04");
+        let bytes = Bytes::from_string("YELLOW SUBMARINE".into());
+        let new = bytes.pad_pkcs(16);
+        assert_eq!(new.into_string(), "YELLOW SUBMARINE");
+    }
+
+    #[test]
+    fn test_decrypt() {
+        let key: &[u8; 16] = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F";
+        let iv: &[u8; 16] = b"\x00\x01\x02\x03\x04\x05\x06\x07\x00\x01\x02\x03\x04\x05\x06\x07";
+        assert_eq!(Bytes(b"Some Crypto TextSome Crypto Text".to_vec()).encrypt_CBC(key, iv)
+                       .decrypt_CBC(key, iv).into_string(), "Some Crypto TextSome Crypto Text");
     }
 }
